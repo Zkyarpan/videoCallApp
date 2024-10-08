@@ -8,54 +8,49 @@ import { v4 as uuidv4 } from "uuid";
 const Room = ({ params }: { params: { roomid: string } }) => {
   const { fullName } = useUser();
   const roomID = params.roomid;
-
-  // Create a ref for the video call container
-  const callContainerRef = useRef<HTMLDivElement>(null);
+  const callContainerRef = useRef<HTMLDivElement>(null); // Reference for the container
 
   useEffect(() => {
-    if (typeof window !== "undefined" && callContainerRef.current) {
-      const appID = parseInt(process.env.NEXT_PUBLIC_ZEGO_APP_ID!);
-      const serverSecret = process.env.NEXT_PUBLIC_ZEGO_SERVER_SECRET_KEY!;
+    // Ensure that the async function is called after the component has mounted
+    const setupMeeting = async () => {
+      if (callContainerRef.current) {
+        const appID = parseInt(process.env.NEXT_PUBLIC_ZEGO_APP_ID!, 10);
+        const serverSecret = process.env.NEXT_PUBLIC_ZEGO_SERVER_SECRET_KEY!;
+        const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
+          appID,
+          serverSecret,
+          roomID,
+          uuidv4(),
+          fullName || "user" + Date.now(),
+          720 // Token expiration time in minutes
+        );
 
-      // generate Kit Token
-      const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
-        appID,
-        serverSecret,
-        roomID,
-        uuidv4(),
-        fullName || "user" + Date.now()
-      );
-
-      // Create instance object from Kit Token.
-      const zp = ZegoUIKitPrebuilt.create(kitToken);
-      // start the call
-      zp.joinRoom({
-        container: callContainerRef.current,
-        sharedLinks: [
-          {
-            name: "Shareable link",
-            url:
-              window.location.protocol +
-              "//" +
-              window.location.host +
-              window.location.pathname +
-              "?roomID=" +
-              roomID,
+        const zp = ZegoUIKitPrebuilt.create(kitToken);
+        zp.joinRoom({
+          container: callContainerRef.current,
+          sharedLinks: [
+            {
+              name: "Shareable link",
+              url:
+                window.location.protocol +
+                "//" +
+                window.location.host +
+                window.location.pathname +
+                "?roomID=" +
+                roomID,
+            },
+          ],
+          scenario: {
+            mode: ZegoUIKitPrebuilt.VideoConference, // Use video conference mode
           },
-        ],
-        scenario: {
-          mode: ZegoUIKitPrebuilt.VideoConference,
-        },
-      });
-    }
-  }, [roomID, fullName]); // Re-run effect if roomID or fullName changes
+        });
+      }
+    };
 
-  return (
-    <div
-      ref={callContainerRef}
-      style={{ width: "100vw", height: "100vh" }}
-    ></div>
-  );
+    setupMeeting();
+  }, [fullName, roomID]);
+
+  return <div className="w-full h-screen " ref={callContainerRef} />;
 };
 
 export default Room;
